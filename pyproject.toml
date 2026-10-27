@@ -1,0 +1,26 @@
+[project]
+name = "valutatrade-hub"
+version = "0.1.0"
+description = "Итоговый проект"
+readme = "README.md"
+authors = [
+    { name = "Ilya Fayzullin", email = "ilyafayzullin@yandex.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "prettytable>=3.18.0",
+]
+
+[project.scripts]
+valtrade = "main:main"
+valtradecli = "valutatrade_hub.cli.interface:run_cli"
+
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.3",
+]
