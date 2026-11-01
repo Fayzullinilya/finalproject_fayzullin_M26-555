@@ -5,3 +5,4 @@ wheels/
 *.egg-info
 .python-version
 .venv
+tests/
