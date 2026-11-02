@@ -3,7 +3,7 @@ import shlex
 
 from typing import Callable, List, Dict, Optional, Any
 
-from core.usecases import (
+from valutatrade_hub.core.usecases import (
     register_user,
     login_user,
     show_portfolio,
@@ -11,9 +11,6 @@ from core.usecases import (
     sell_currency,
     get_rate,
 )
-
-# Глобальная сессия: None — не залогинен, иначе — имя пользователя
-
 
 class CLI:
     def __init__(self):
@@ -161,7 +158,7 @@ class CLI:
 
         try:
             user_id = login_user(username, password)
-            self._set_current_user_id(user_id)
+            self._set_current_user(user_id)
             print(f"Вы вошли как '{username}'.")
         except ValueError as e:
             print(str(e))
@@ -182,20 +179,22 @@ class CLI:
             currency = self._get_arg_value(args, '--base')
         except ValueError as e:
             print(str(e))
-
-        if (len(currency) == 3 and currency.isalpha() and currency.isascii()):
-            base_currency = currency.upper()
-        else:
-            print(
-                f"Ошибка: {currency} не является кодом валюты в  "
-                "формате стандарта ISO (например: EUR, RUB)."
-            )
             return
+
+        if currency is not None:
+            if (len(currency) == 3 and currency.isalpha() and currency.isascii()):
+                base_currency = currency.upper()
+            else:
+                print(
+                    f"Ошибка: {currency} не является кодом валюты в  "
+                    "формате стандарта ISO (например: EUR, RUB)."
+                )
+                return
             
         try:
             data = show_portfolio(self._current_user_id, base_currency)
-            user = data["user"]
-            total = data["total"]
+            user = data.get("user", "")
+            total = data.get("total", 0.0)
             currencies = data.get("currencies", {})
 
             print(f"Портфель пользователя '{user}' (база: {base_currency}):")
