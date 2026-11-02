@@ -54,7 +54,7 @@ class User:
         self._username = value.strip()
 
     @registration_date.setter
-    def registration_date(self, value: Optional[datetime]):
+    def registration_date(self, value: Optional[datetime] = None):
         if value is None:
             value = datetime.now(timezone.utc)
 
@@ -101,41 +101,32 @@ class User:
 
         return secrets.compare_digest(hash_str, self._hashed_password)
 
-    # # --- Методы для сериализации/десериализации (удобно для работы с JSON) ---
+    @classmethod
+    def from_dict(cls, data: dict) -> "User":
+        """Создает объект User из словаря (например, из строки JSON)."""
+        reg_date_str = data.get("registration_date", None)
+        if reg_date_str:
+            try:
+                reg_date = datetime.fromisoformat(reg_date_str.replace('Z', '+00:00'))
+            except ValueError as e:
+                raise ValueError(
+                    f"Некорректный формат registration_date: {reg_date_str!r}"
+                ) from e
+        else:
+            reg_date = None
+        obj = cls(data["user_id"], data["username"], data["hashed_password"],
+                  data["salt"],reg_date)
+        return obj
 
-    # @classmethod
-    # def from_dict(cls, data: dict) -> "User":
-    #     """Создает объект User из словаря (например, из строки JSON)."""
-    #     reg_date_str = data.get("registration_date")
-    #     reg_date = None
-    #     if reg_date_str:
-    #         # Пытаемся распарсить ISO формат
-    #         try:
-    #             reg_date = datetime.fromisoformat(reg_date_str.replace('Z', '+00:00'))
-    #         except ValueError:
-    #             # Фоллбэк на старый формат, если нужно
-    #             reg_date = datetime.strptime(reg_date_str, "%Y-%m-%dT%H:%M:%S")
-    #         # Добавляем часово пояс если отсутствует
-    #         if reg_date.tzinfo is None:
-    #             reg_date = reg_date.replace(tzinfo=timezone.utc)
-
-    #     return cls(
-    #         user_id=data["user_id"],
-    #         username=data["username"],
-    #         hashed_password=data["hashed_password"],
-    #         salt=data["salt"],
-    #         registration_date=reg_date
-    #     )
-
-    # def to_dict(self) -> dict:
-    #     """Преобразует объект в словарь для сохранения в JSON."""
-    #     return {
-    #         "user_id": self._user_id,
-    #         "username": self._username,
-    #         "hashed_password": self._hashed_password,
-    #         "salt": self._salt,
-    #         "registration_date": self._registration_date.isoformat()
-    #     }
+    def to_dict(self) -> dict:
+        """Преобразует объект в словарь для сохранения в JSON."""
+        return {
+            "user_id": self.user_id,
+            "username": self.username,
+            "hashed_password": self.hashed_password,
+            "salt": self.salt,
+            "registration_date": self.registration_date.isoformat()
+        }
 
 class Wallet:
     def __init__(self, currency_code: str, balance: float = 0.0):
