@@ -22,6 +22,10 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 only-include = ["valutatrade_hub", "main.py"]
 
+[tool.uv.build-backend]
+module-name = "valutatrade_hub"
+module-root = ""
+
 [dependency-groups]
 dev = [
     "pytest>=9.2.0",
