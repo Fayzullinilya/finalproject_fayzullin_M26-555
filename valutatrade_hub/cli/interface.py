@@ -1,11 +1,11 @@
+# valutatrade_hub\cli\interface.py
 import prompt
 import shlex
 
 from typing import Callable, List, Dict, Optional, Any
 
 from valutatrade_hub.core.usecases import (
-    register_user,
-    login_user,
+    Auth,
     show_portfolio,
     buy_currency,
     sell_currency,
@@ -24,6 +24,7 @@ class CLI:
             "get-rate": self.handle_get_rate,
             "help": self.handle_help,
         }
+        self.user_auth = Auth()
 
     @property
     def current_user_id(self) -> int | None:
@@ -61,8 +62,10 @@ class CLI:
 
     def run(self) -> None:
         while True:
+            # Временно передаем ID. поменяем на объект сессию и имя пользователя
+            active_user = self._current_user_id if self._is_logged_in else "Guest"
             try:
-                user_input = prompt.string('\n>>>Введите команду: ')
+                user_input = prompt.string(f"\n<{active_user}> Введите команду: ")
             except (EOFError, KeyboardInterrupt):
                 print("\nВыход из CLI.")
                 break
@@ -125,7 +128,7 @@ class CLI:
             return
 
         try:
-            user_id = register_user(username, password)
+            user_id = self.user_auth.register_user(username, password)
             print(
                 f"Пользователь '{username}' зарегистрирован (id={user_id}). "
                 f"Войдите: login --username {username} --password ****"
@@ -157,7 +160,7 @@ class CLI:
             return
 
         try:
-            user_id = login_user(username, password)
+            user_id = self.user_auth.login_user(username, password)
             self._set_current_user(user_id)
             print(f"Вы вошли как '{username}'.")
         except ValueError as e:
