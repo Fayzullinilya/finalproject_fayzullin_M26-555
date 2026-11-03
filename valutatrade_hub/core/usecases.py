@@ -249,14 +249,13 @@ class PortfolioService:
         wallet = portfolio.get_wallet(currency)
         prev_qty = wallet.balance if wallet else 0.0
 
-        if wallet is None or not wallet.withdraw(amount):
-            return {
-                "rate": 0.0,
-                "revenue": 0.0,
-                "prev_qty": prev_qty,
-                "new_qty": prev_qty,
-                "error": "Недостаточно средств или валюта не найдена",
-            }
+        if wallet is None:
+            raise ValueError(
+                f"У вас нет кошелька {currency}. Добавьте валюту: она создаётся "
+                "автоматически при первой покупке."
+            )
+        
+        wallet.withdraw(amount)
 
         new_qty = wallet.balance
         rate = portfolio._rates.get(currency, 0.0)

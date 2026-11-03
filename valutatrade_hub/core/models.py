@@ -169,7 +169,10 @@ class Wallet:
 
         amount_f = float(amount)
         if amount_f > self._balance:
-            return False
+            raise ValueError(
+                f"Недостаточно средств: доступно {self.balance} {self.currency_code}, "
+                f"требуется {amount} {self.currency_code}."
+            )
 
         self._balance -= amount_f
         return True
