@@ -6,3 +6,5 @@ wheels/
 .python-version
 .venv
 tests/
+.vscode/
+data/

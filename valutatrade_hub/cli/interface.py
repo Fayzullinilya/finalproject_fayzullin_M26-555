@@ -2,19 +2,11 @@
 import prompt
 import shlex
 
-from typing import Callable, List, Dict, Optional, Any
-
-from valutatrade_hub.core.usecases import (
-    Auth,
-    show_portfolio,
-    buy_currency,
-    sell_currency,
-    get_rate,
-)
+from valutatrade_hub.core.usecases import Auth, PortfolioService
 
 class CLI:
     def __init__(self):
-        self._current_user_id = None
+        self._current_user_id = 5
         self.commands = {
             "register": self.handle_register,
             "login": self.handle_login,
@@ -25,6 +17,7 @@ class CLI:
             "help": self.handle_help,
         }
         self.user_auth = Auth()
+        self.portfolio_service = PortfolioService()
 
     @property
     def current_user_id(self) -> int | None:
@@ -53,6 +46,7 @@ class CLI:
         if len(found_values) > 1:
             raise ValueError(
                 f" Для '{key}' указано несколько значений: {', '.join(found_values)}. "
+                "Укажите одно значение."
             )
         return found_values[0]
     
@@ -63,7 +57,7 @@ class CLI:
     def run(self) -> None:
         while True:
             # Временно передаем ID. поменяем на объект сессию и имя пользователя
-            active_user = self._current_user_id if self._is_logged_in else "Guest"
+            active_user = str(self._current_user_id) if self._is_logged_in else "Guest"
             try:
                 user_input = prompt.string(f"\n<{active_user}> Введите команду: ")
             except (EOFError, KeyboardInterrupt):
@@ -112,29 +106,26 @@ class CLI:
         try:
             username = self._get_arg_value(args, '--username')
             password = self._get_arg_value(args, '--password')
-        except ValueError as e:
-            print(str(e))
 
-        if username is None or password is None:
-            print("Ошибка: аргументы --username и --password обязательны.")
-            return
+            if username is None or password is None:
+                print("Ошибка: аргументы --username и --password обязательны.")
+                return
 
-        username = username.strip()
-        # пробелы в начале и конце пароля недопустимы
-        password = password.strip()
+            username = username.strip()
+            # пробелы в начале и конце пароля недопустимы
+            password = password.strip()
 
-        if not username or not password:
-            print("Ошибка: имя и пароль не могут быть пустыми.")
-            return
+            if not username or not password:
+                print("Ошибка: имя и пароль не могут быть пустыми.")
+                return
 
-        try:
             user_id = self.user_auth.register_user(username, password)
             print(
                 f"Пользователь '{username}' зарегистрирован (id={user_id}). "
                 f"Войдите: login --username {username} --password ****"
             )
         except ValueError as e:
-            print(str(e))
+            print(f"Ошибка: {str(e)}")
         except FileNotFoundError:
             print("Не удалось сохранить данные: файл базы не найден.")
         except Exception as e:
@@ -144,27 +135,24 @@ class CLI:
         try:
             username = self._get_arg_value(args, '--username')
             password = self._get_arg_value(args, '--password')
-        except ValueError as e:
-            print(str(e))
 
-        if username is None or password is None:
-            print("Ошибка: аргументы --username и --password обязательны.")
-            return
+            if username is None or password is None:
+                print("Ошибка: аргументы --username и --password обязательны.")
+                return
 
-        username = username.strip()
-        # пробелы в начале и конце пароля недопустимы
-        password = password.strip()
+            username = username.strip()
+            # пробелы в начале и конце пароля недопустимы
+            password = password.strip()
 
-        if not username or not password:
-            print("Ошибка: имя и пароль не могут быть пустыми.")
-            return
+            if not username or not password:
+                print("Ошибка: имя и пароль не могут быть пустыми.")
+                return
 
-        try:
             user_id = self.user_auth.login_user(username, password)
             self._set_current_user(user_id)
             print(f"Вы вошли как '{username}'.")
         except ValueError as e:
-            print(str(e))
+            print(f"Ошибка: {str(e)}")
         except Exception as e:
             print(f"Не удалось войти: {e}")
 
@@ -195,7 +183,7 @@ class CLI:
                 return
             
         try:
-            data = show_portfolio(self._current_user_id, base_currency)
+            data =self.portfolio_service.show_portfolio(self.current_user_id, base_currency)
             user = data.get("user", "")
             total = data.get("total", 0.0)
             currencies = data.get("currencies", {})
@@ -239,14 +227,14 @@ class CLI:
             return
 
         try:
-            result = buy_currency(currency, amount)
+            result = self.portfolio_service.buy_currency(self.current_user_id, currency, amount)
             rate = result["rate"]
             cost = result["cost"]
             prev_qty = result.get("prev_qty", 0)
             new_qty = result["new_qty"]
 
             print(
-                f"Покупка выполнена: {amount:.4f} {currency} "
+                f"Покупка выполнена: {int(amount):.4f} {currency} "
                 f"по курсу {rate:.2f} {currency}/USD"
             )
             print("Изменения в портфеле:")
@@ -278,14 +266,14 @@ class CLI:
             return
 
         try:
-            result = sell_currency(currency, amount)
+            result = self.portfolio_service.sell_currency(self.current_user_id, currency, amount)
             rate = result["rate"]
             revenue = result["revenue"]
             prev_qty = result.get("prev_qty", 0)
             new_qty = result["new_qty"]
 
             print(
-                f"Продажа выполнена: {amount:.4f} {currency} "
+                f"Продажа выполнена: {int(amount):.4f} {currency} "
                 f"по курсу {rate:.2f} {currency}/USD"
             )
             print("Изменения в портфеле:")
@@ -299,30 +287,43 @@ class CLI:
             print(f"Не удалось выполнить продажу: {e}")
 
     def handle_get_rate(self, args: list[str]) -> None:
+        """Обрабатывает команду get-rate --from <code> --to <code>."""
         try:
-            from_cur = self._get_arg_value(args, '--from')
-            to_cur = self._get_arg_value(args, '--to')
-        except ValueError as e:
-            print(str(e))
-            
-        if from_cur is None or to_cur is None:
-            print("Ошибка: аргументы --from и --to обязательны.")
-            return
+            from_currency = self._get_arg_value(args, "--from")
+            to_currency = self._get_arg_value(args, "--to")
 
-        try:
-            rate_info = get_rate(from_cur, to_cur)
-            forward = rate_info["forward"]
-            reverse = rate_info["reverse"]
-            updated_at = rate_info["updated_at"]
+            # 1. Проверка: оба аргумента обязательны
+            if not from_currency or not to_currency:
+                print("Ошибка: укажите обе валюты. Пример: get-rate --from EUR --to BTC")
+                return
 
-            print(
-                f"Курс {from_cur}→{to_cur}: {forward:.8f} "
-                f"(обновлено: {updated_at})"
-            )
-            print(f"Обратный курс {to_cur}→{from_cur}: {reverse:.2f}")
+            from_code = from_currency.strip().upper()
+            to_code = to_currency.strip().upper()
+
+            # 2. Валидация: ровно 3 латинские буквы (без regex, как ты хотел)
+            if len(from_code) != 3 or not from_code.isalpha():
+                print(f"Ошибка: '{from_currency}' не является корректным кодом валюты (ожидаются 3 латинские буквы).")
+                return
+            if len(to_code) != 3 or not to_code.isalpha():
+                print(f"Ошибка: '{to_currency}' не является корректным кодом валюты.")
+                return
+
+            # 3. Вызов use-case метода сервиса
+            rate_result = self.portfolio_service.get_rate(from_code, to_code)
+
+            # 4. Обработка результата
+            if not rate_result["is_valid"]:
+                missing = ", ".join(rate_result["missing"])
+                print(f"Курс недоступен для валюты(й): {missing}")
+                print("Подсказка: проверьте, загружен ли rates.json и есть ли там эти коды.")
+                return
+
+            # 5. Красивый вывод (как в ТЗ)
+            print(f"Курс {rate_result['from']}→{rate_result['to']}: {rate_result['rate']:.8f}")
+            print(f"Обратный курс {rate_result['to']}→{rate_result['from']}: {rate_result['inverse_rate']:.2f}")
         except ValueError as e:
             print(str(e))
         except KeyError as e:
-            print(f"Ошибка данных курса: отсутствует поле {e}")
+            print(f"Ошибка данных: отсутствует поле {e}")
         except Exception as e:
-            print(f"Не удалось получить курс: {e}")
+            print(f"Не удалось выполнить продажу: {e}")

@@ -182,34 +182,18 @@ class Wallet:
         }
 
 class Portfolio:
-    _exchange_rates = {
-        "USD": 1.0,
-        "EUR": 1.1,      # 1 EUR = 1.1 USD
-        "BTC": 42000.0,  # 1 BTC = 42000 USD
-        "GBP": 1.25,     # 1 GBP = 1.25 USD
-        "JPY": 0.0065,   # 1 JPY = 0.0065 USD
-    }
 
-    def __init__(self, user_id: int, wallets: dict[str, "Wallet"] | None = None):
+    def __init__(self, user_id: int,
+                 wallets: dict[str, "Wallet"] | None = None, 
+                 rates: dict | None = None):
         if not isinstance(user_id, int) or user_id <= 0:
             raise ValueError("user_id должен быть положительным целым числом")
         self._user_id = user_id
 
         # Инициализируем пустой словарь или принимаем переданный
-        if wallets is None:
-            self._wallets: dict[str, "Wallet"] = {}
-        else:
-            # Проверка: ключи — строки, значения — Wallet
-            for code, wallet in wallets.items():
-                if not isinstance(code, str):
-                    raise TypeError(
-                        "Ключи словаря wallets должны быть строками (коды валют)"
-                    )
-                if not isinstance(wallet, Wallet):
-                    raise TypeError(
-                        f"Значение для валюты {code} должно быть объектом Wallet"
-                    )
-            self._wallets = wallets
+        self._wallets = wallets if wallets is not None else {}
+        # Сохраняем курсы внутри модели, чтобы get_total_value мог ими пользоваться
+        self._rates = rates if rates is not None else {}
 
     @property
     def user_id(self) -> int:
@@ -245,25 +229,47 @@ class Portfolio:
 
     def get_total_value(self, base_currency: str = "USD") -> float:
         """
-        Считает общую стоимость всех валют в портфеле в указанной базовой валюте.
-        Использует фиксированные курсы из _exchange_rates.
-        Если курс для какой-то валюты не найден — она не учитывается.
+        Возвращает общую стоимость портфеля в указанной базовой валюте.
+        Сигнатура строго по заданию: только base_currency.
+        Логика расчёта использует self._rates, переданные в конструкторе.
         """
-        base_currency = base_currency.strip().upper()
-        if base_currency not in self._exchange_rates:
-            raise ValueError(f"Курс для базовой валюты {base_currency} не задан")
+        base_currency = base_currency.upper()
+        base_rate = self._rates.get(base_currency, 1.0)
+        
+        # Защита от деления на ноль, если курс базовой валюты вдруг 0
+        if base_rate == 0:
+            base_rate = 1.0
 
-        base_rate = self._exchange_rates[base_currency]
-    
-        total = 0.0
-        for code, wallet in self._wallets.items():
-            if code not in self._exchange_rates:
-                raise ValueError(f"Курс для валюты {code} не задан")
+        total_value = 0.0
+        for code, wallet in self.wallets.items():
+            # Курс текущей валюты к базовой: rate_code / rate_base
+            code_rate = self._rates.get(code, 0.0)
+            value_in_base = wallet.balance * (code_rate / base_rate)
+            total_value += value_in_base
 
-            rate_to_usd = self._exchange_rates[code]
-            # Конвертируем в USD, затем в base_currency (если base_currency != USD)
-            # Формула: balance * rate_to_usd / base_rate
-            value_in_base = wallet.balance * rate_to_usd / base_rate
-            total += value_in_base
+        return total_value
 
-        return total
+    @classmethod
+    def from_dict(cls, data: dict, rates: dict | None = None) -> "Portfolio":
+        user_id = data.get("user_id")
+        raw_wallets = data.get("wallets", {})
+        
+        wallets = {}
+        for code, w_data in raw_wallets.items():
+            balance = w_data.get("balance", 0.0)
+            wallets[code.upper()] = Wallet(currency_code=code.upper(), balance=balance)
+        
+        return cls(user_id=user_id, wallets=wallets, rates=rates)
+
+    def to_dict(self) -> dict:
+        wallets_data = {}
+        for code, wallet in self.wallets.items():
+            wallets_data[code] = {
+                "currency_code": wallet.currency_code,
+                "balance": wallet.balance,
+            }
+        
+        return {
+            "user_id": self.user_id,
+            "wallets": wallets_data,
+        }
