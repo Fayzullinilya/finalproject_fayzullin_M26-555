@@ -1,9 +1,6 @@
 # currencies.py
 from abc import ABC, abstractmethod
-
-class CurrencyNotFoundError(Exception):
-    """Исключение, если код валюты не найден в реестре."""
-    pass
+from exceptions import CurrencyNotFoundError
 
 class Currency(ABC):
     # Реестр известных валют
@@ -35,9 +32,7 @@ class Currency(ABC):
         data = cls._currency_dict.get(code)
         if data is None:
             available = ", ".join(cls._currency_dict.keys())
-            raise CurrencyNotFoundError(
-                f"Неизвестный код валюты: {code}. Доступные: {available}"
-            )
+            raise CurrencyNotFoundError(code)
         if data["type"] == "fiat":
             return FiatCurrency(data["name"], code, data["country"])
         return CryptoCurrency(data["name"], code, data["algorithm"], data["market_cap"])
