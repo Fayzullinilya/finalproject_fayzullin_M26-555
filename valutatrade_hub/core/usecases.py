@@ -4,6 +4,7 @@ import secrets
 from datetime import datetime, timezone
 from valutatrade_hub.core.utils import JsonStorage
 from valutatrade_hub.core.models import Portfolio, Wallet
+from valutatrade_hub.core.currencies import Currency
 
 class Auth:
     def __init__(self):
@@ -184,13 +185,14 @@ class PortfolioService:
             rates = self._load_rates()
             portfolio = Portfolio(user_id, {}, rates)
 
-        total_value = portfolio.get_total_value(base_currency)
+        base_curr_obj = Currency.get_currency(base_currency)
+        total_value = portfolio.get_total_value(base_curr_obj.code)
 
         currencies = {}
         for code, wallet in portfolio.wallets.items():
             try:
                 rate_to_usd = portfolio._rates[code]
-                base_rate = portfolio._rates.get(base_currency, 1.0)
+                base_rate = portfolio._rates.get(base_curr_obj.code, 1.0)
                 value_in_base = wallet.balance * rate_to_usd / base_rate
                 currencies[code] = {
                     "qty": wallet.balance,
@@ -209,26 +211,32 @@ class PortfolioService:
         }
 
     def buy_currency(self, user_id, currency, amount):
-        amount = float(amount)
-        currency = currency.strip().upper()
+        try:
+            amount = float(amount)
+        except (TypeError, ValueError):
+            raise ValueError("Количество покупаемой валюты должен быть числом.")
+        if amount <= 0:
+            raise ValueError("Сумма покупки должна быть положительным числом.")
+
+        currency_obj = Currency.get_currency(currency)
 
         portfolio = self._load_portfolio(user_id)
         if portfolio is None:
             portfolio = Portfolio(user_id, {})
 
-        wallet = portfolio.get_wallet(currency)
+        wallet = portfolio.get_wallet(currency_obj.code)
         prev_qty = wallet.balance if wallet else 0.0
 
         if wallet is None:
-            portfolio.add_currency(currency)
-            wallet = portfolio.get_wallet(currency)
+            portfolio.add_currency(currency_obj.code)
+            wallet = portfolio.get_wallet(currency_obj.code)
 
         wallet.deposit(amount)
         new_qty = wallet.balance
 
         self._save_portfolio(portfolio)
 
-        rate = portfolio._rates.get(currency, 0.0)
+        rate = portfolio._rates.get(currency_obj.code, 0.0)
         cost = amount * rate
 
         return {
@@ -239,26 +247,32 @@ class PortfolioService:
         }
 
     def sell_currency(self, user_id, currency, amount):
-        amount = float(amount)
-        currency = currency.strip().upper()
+        try:
+            amount = float(amount)
+        except (TypeError, ValueError):
+            raise ValueError("Количество покупаемой валюты должен быть числом.")
+        if amount <= 0:
+            raise ValueError("Сумма покупки должна быть положительным числом.")
+
+        currency_obj = Currency.get_currency(currency)
 
         portfolio = self._load_portfolio(user_id)
         if portfolio is None:
-            portfolio = Portfolio(user_id=user_id, wallets={})
+            portfolio = Portfolio(user_id, {})
 
-        wallet = portfolio.get_wallet(currency)
+        wallet = portfolio.get_wallet(currency_obj.code)
         prev_qty = wallet.balance if wallet else 0.0
 
         if wallet is None:
             raise ValueError(
-                f"У вас нет кошелька {currency}. Добавьте валюту: она создаётся "
+                f"У вас нет кошелька {currency_obj.code}. Добавьте валюту: она создаётся "
                 "автоматически при первой покупке."
             )
         
-        wallet.withdraw(amount)
+        wallet.withdraw(currency_obj.code)
 
         new_qty = wallet.balance
-        rate = portfolio._rates.get(currency, 0.0)
+        rate = portfolio._rates.get(currency_obj.code, 0.0)
         revenue = amount * rate
 
         self._save_portfolio(portfolio)
@@ -289,60 +303,22 @@ class PortfolioService:
             "is_valid": True/False   # можно ли доверять курсу
           }
         """
-        from_code = from_currency.strip().upper()
-        to_code = to_currency.strip().upper()
 
-        # Простая валидация: ровно 3 латинские буквы (без regex, как ты хотел)
-        if not (len(from_code) == 3 and from_code.isalpha()):
-            return {
-                "from": from_code,
-                "to": to_code,
-                "rate": None,
-                "inverse_rate": None,
-                "base": "USD",
-                "missing": [from_code],
-                "is_valid": False,
-            }
-        if not (len(to_code) == 3 and to_code.isalpha()):
-            return {
-                "from": from_code,
-                "to": to_code,
-                "rate": None,
-                "inverse_rate": None,
-                "base": "USD",
-                "missing": [to_code],
-                "is_valid": False,
-            }
+        from_curr_obj = Currency.get_currency(from_currency)
+        to_curr_obj = Currency.get_currency(to_currency)
 
         rates = self._load_rates()
 
-        rate_from = rates.get(from_code)
-        rate_to = rates.get(to_code)
-
-        missing = []
-        if rate_from is None:
-            missing.append(from_code)
-        if rate_to is None:
-            missing.append(to_code)
-
-        if missing:
-            return {
-                "from": from_code,
-                "to": to_code,
-                "rate": None,
-                "inverse_rate": None,
-                "base": "USD",
-                "missing": missing,
-                "is_valid": False,
-            }
+        rate_from = rates.get(from_curr_obj.code, 0.0)
+        rate_to = rates.get(to_curr_obj.code, 0.0)
 
         # Конвертация через USD: rate = rate_to / rate_from
         rate = rate_to / rate_from if rate_from != 0 else None
         inverse_rate = 1.0 / rate if rate and rate != 0 else None
 
         return {
-            "from": from_code,
-            "to": to_code,
+            "from": from_curr_obj.code,
+            "to": to_curr_obj.code,
             "rate": rate,
             "inverse_rate": inverse_rate,
             "base": "USD",
