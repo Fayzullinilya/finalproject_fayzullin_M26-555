@@ -250,9 +250,9 @@ class PortfolioService:
         try:
             amount = float(amount)
         except (TypeError, ValueError):
-            raise ValueError("Количество покупаемой валюты должен быть числом.")
+            raise ValueError("Количество продаваемой валюты должен быть числом.")
         if amount <= 0:
-            raise ValueError("Сумма покупки должна быть положительным числом.")
+            raise ValueError("Сумма продажи должна быть положительным числом.")
 
         currency_obj = Currency.get_currency(currency)
 
@@ -269,7 +269,7 @@ class PortfolioService:
                 "автоматически при первой покупке."
             )
         
-        wallet.withdraw(currency_obj.code)
+        wallet.withdraw(amount)
 
         new_qty = wallet.balance
         rate = portfolio._rates.get(currency_obj.code, 0.0)

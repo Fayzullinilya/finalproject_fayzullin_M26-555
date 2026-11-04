@@ -1,6 +1,6 @@
 # currencies.py
 from abc import ABC, abstractmethod
-from exceptions import CurrencyNotFoundError
+from valutatrade_hub.core.exceptions import CurrencyNotFoundError
 
 class Currency(ABC):
     # Реестр известных валют
