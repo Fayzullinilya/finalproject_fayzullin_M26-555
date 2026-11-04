@@ -3,7 +3,7 @@ import prompt
 import shlex
 
 from valutatrade_hub.core.usecases import Auth, PortfolioService
-from valutatrade_hub.core.exceptions import InsufficientFundsError
+from valutatrade_hub.core.exceptions import InsufficientFundsError, CurrencyNotFoundError
 
 class CLI:
     def __init__(self):
@@ -202,6 +202,8 @@ class CLI:
 
             print("-" * 32)
             print(f"ИТОГО: {total:,.2f} {base_currency}")
+        except CurrencyNotFoundError as e:
+            print(f"Ошибка: {str(e)}")
         except KeyError as e:
             print(f"Ошибка данных портфеля: отсутствует поле {e}")
         except ValueError as e:
@@ -241,6 +243,8 @@ class CLI:
             print("Изменения в портфеле:")
             print(f"- {currency}: было {prev_qty:.4f} → стало {new_qty:.4f}")
             print(f"Оценочная стоимость покупки: {cost:,.2f} USD")
+        except CurrencyNotFoundError as e:
+            print(f"Ошибка: {str(e)}")
         except ValueError as e:
             print(str(e))
         except KeyError as e:
@@ -280,6 +284,8 @@ class CLI:
             print("Изменения в портфеле:")
             print(f"- {currency}: было {prev_qty:.4f} → стало {new_qty:.4f}")
             print(f"Оценочная выручка: {revenue:,.2f} USD")
+        except CurrencyNotFoundError as e:
+            print(f"Ошибка: {str(e)}")
         except InsufficientFundsError as e:
             print(str(e))
         except ValueError as e:
@@ -311,19 +317,18 @@ class CLI:
                 print(f"Ошибка: '{to_currency}' не является корректным кодом валюты.")
                 return
 
-            # 3. Вызов use-case метода сервиса
             rate_result = self.portfolio_service.get_rate(from_code, to_code)
 
-            # 4. Обработка результата
             if not rate_result["is_valid"]:
                 missing = ", ".join(rate_result["missing"])
                 print(f"Курс недоступен для валюты(й): {missing}")
                 print("Подсказка: проверьте, загружен ли rates.json и есть ли там эти коды.")
                 return
 
-            # 5. Красивый вывод (как в ТЗ)
             print(f"Курс {rate_result['from']}→{rate_result['to']}: {rate_result['rate']:.8f}")
             print(f"Обратный курс {rate_result['to']}→{rate_result['from']}: {rate_result['inverse_rate']:.2f}")
+        except CurrencyNotFoundError as e:
+            print(f"Ошибка: {str(e)}")
         except ValueError as e:
             print(str(e))
         except KeyError as e:
