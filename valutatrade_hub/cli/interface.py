@@ -3,6 +3,7 @@ import prompt
 import shlex
 
 from valutatrade_hub.core.usecases import Auth, PortfolioService
+from valutatrade_hub.core.exceptions import InsufficientFundsError
 
 class CLI:
     def __init__(self):
@@ -279,6 +280,8 @@ class CLI:
             print("Изменения в портфеле:")
             print(f"- {currency}: было {prev_qty:.4f} → стало {new_qty:.4f}")
             print(f"Оценочная выручка: {revenue:,.2f} USD")
+        except InsufficientFundsError as e:
+            print(str(e))
         except ValueError as e:
             print(str(e))
         except KeyError as e:
