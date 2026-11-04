@@ -2,7 +2,7 @@
 import hashlib
 import secrets
 from datetime import datetime, timezone
-from typing import Optional
+from exceptions import InsufficientFundsError
 
 class User:
     def __init__(self, user_id: int, username: str, hashed_password: str,
@@ -169,9 +169,10 @@ class Wallet:
 
         amount_f = float(amount)
         if amount_f > self._balance:
-            raise ValueError(
-                f"Недостаточно средств: доступно {self.balance} {self.currency_code}, "
-                f"требуется {amount} {self.currency_code}."
+            raise InsufficientFundsError(
+                available = self.balance,
+                required = amount,
+                code = self.currency_code
             )
 
         self._balance -= amount_f
