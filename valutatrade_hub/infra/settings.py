@@ -8,9 +8,17 @@ class SettingsLoader(metaclass=MetaClass):
     # Дефолтные знаения сохранятся, если json и toml окажутся недоступными
     _DEFAULTS = {
         "data_dir": "data",
+        "users_data_file" : "users.json",
+        "portfolios_data_file" : "portfolios.json",
+        "rates_data_file" : "rates.json",
+        "log_dir": "logs",
+        "log_file": "actions.log",
+        "log_fmt" : "[%(levelname)s] [%(asctime)s] %(message)s",
+        "log_date_fmt" : "%Y-%m-%d %H:%M:%S",
+        "log_max_mb": 5,
+        "log_count" : 5,
         "base_currency": "USD",
-        "RATES_TTL_SECONDS": 300,
-        "log_path": "logs/app.log"
+        "RATES_TTL_SECONDS": 300
     }
 
     CONFIG_JSON = "config.json"
