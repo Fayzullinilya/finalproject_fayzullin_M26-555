@@ -8,3 +8,4 @@ wheels/
 tests/
 .vscode/
 data/
+logs/

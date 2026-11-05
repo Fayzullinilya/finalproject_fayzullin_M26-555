@@ -1,17 +1,28 @@
 # valutatrade_hub\core\usecases.py
+import os
 import hashlib
 import secrets
 from datetime import datetime, timezone
 from valutatrade_hub.core.utils import JsonStorage
 from valutatrade_hub.core.models import Portfolio, Wallet
 from valutatrade_hub.core.currencies import Currency
+from valutatrade_hub.decorators import log_action
+from valutatrade_hub.infra.settings import SettingsLoader
 
 class Auth:
     def __init__(self):
-        # todo: сделать отдельный файл
-        self.users_storage = JsonStorage("data/users.json")
-        self.portfolios_storage = JsonStorage("data/portfolios.json")
+        settings = SettingsLoader()
+        data_dir = settings.get("data_dir", "data")
 
+        users_data_file = settings.get("users_data_file", "users.json")
+        users_path = os.path.join(data_dir, users_data_file)
+        self.users_storage = JsonStorage(users_path)
+
+        portfolios_data_file = settings.get("portfolios_data_file", "portfolios.json")
+        portfolios_path = os.path.join(data_dir, portfolios_data_file)
+        self.portfolios_storage = JsonStorage(portfolios_path)
+
+    @log_action('REGISTER')
     def register_user(self, username, password):
         # Валидация входных данных
         if not username or not isinstance(username, str):
@@ -67,6 +78,7 @@ class Auth:
 
         return user_id
 
+    @log_action('LOGIN')
     def login_user(self, username, password):
         if not username:
             raise ValueError("Имя пользователя не может быть пустым.")
@@ -100,9 +112,16 @@ class Auth:
 class PortfolioService:
         
     def __init__(self):
-        self.portfolios_storage = JsonStorage("data/portfolios.json")
-        # Cделать загрузку курсов из API
-        self.rates_storage = JsonStorage("data/rates.json", dict)        
+        settings = SettingsLoader()
+        data_dir = settings.get("data_dir", "data")
+
+        portfolios_data_file = settings.get("portfolios_data_file", "portfolios.json")
+        portfolios_path = os.path.join(data_dir, portfolios_data_file)
+        self.portfolios_storage = JsonStorage(portfolios_path)
+
+        rates_data_file = settings.get("rates_data_file", "rates.json")
+        rates_path = os.path.join(data_dir, rates_data_file)
+        self.rates_storage = JsonStorage(rates_path, dict)        
 
     def _load_portfolio(self, user_id):
         """Загружает портфель пользователя и маппит JSON в объекты Wallet."""
@@ -179,11 +198,15 @@ class PortfolioService:
                 
         return rates_flat
     
-    def show_portfolio(self, user_id, base_currency="USD"):
+    def show_portfolio(self, user_id, base_currency=None):
         portfolio = self._load_portfolio(user_id)
         if portfolio is None:
             rates = self._load_rates()
             portfolio = Portfolio(user_id, {}, rates)
+
+        if base_currency is None:
+            settings = SettingsLoader()
+            base_currency = settings.get("base_currency", "USD")
 
         base_curr_obj = Currency.get_currency(base_currency)
         total_value = portfolio.get_total_value(base_curr_obj.code)
@@ -210,6 +233,7 @@ class PortfolioService:
             "currencies": currencies,
         }
 
+    @log_action('BUY', verbose=True)
     def buy_currency(self, user_id, currency, amount):
         try:
             amount = float(amount)
@@ -246,6 +270,7 @@ class PortfolioService:
             "new_qty": new_qty,
         }
 
+    @log_action('SELL', verbose=True)
     def sell_currency(self, user_id, currency, amount):
         try:
             amount = float(amount)
