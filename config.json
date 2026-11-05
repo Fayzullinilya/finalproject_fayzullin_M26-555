@@ -1,0 +1,6 @@
+{
+    "data_dir": "data",
+    "base_currency": "USD",
+    "RATES_TTL_SECONDS": 300,
+    "log_path": "logs/app.log"
+}
