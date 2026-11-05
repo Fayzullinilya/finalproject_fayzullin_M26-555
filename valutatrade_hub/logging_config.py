@@ -27,7 +27,8 @@ def setup_logging(level=logging.INFO):
     handler = RotatingFileHandler(
         log_file_path,
         maxBytes=5 * 1024 * 1024,
-        backupCount=5
+        backupCount=5,
+        encoding='utf-8'
     )
 
     formatter = logging.Formatter(

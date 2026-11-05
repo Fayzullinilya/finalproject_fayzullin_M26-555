@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from valutatrade_hub.core.utils import JsonStorage
 from valutatrade_hub.core.models import Portfolio, Wallet
 from valutatrade_hub.core.currencies import Currency
+from valutatrade_hub.decorators import log_action
 
 class Auth:
     def __init__(self):
@@ -12,6 +13,7 @@ class Auth:
         self.users_storage = JsonStorage("data/users.json")
         self.portfolios_storage = JsonStorage("data/portfolios.json")
 
+    @log_action('REGISTER')
     def register_user(self, username, password):
         # Валидация входных данных
         if not username or not isinstance(username, str):
@@ -67,6 +69,7 @@ class Auth:
 
         return user_id
 
+    @log_action('LOGIN')
     def login_user(self, username, password):
         if not username:
             raise ValueError("Имя пользователя не может быть пустым.")
@@ -210,6 +213,7 @@ class PortfolioService:
             "currencies": currencies,
         }
 
+    @log_action('BUY', verbose=True)
     def buy_currency(self, user_id, currency, amount):
         try:
             amount = float(amount)
@@ -246,6 +250,7 @@ class PortfolioService:
             "new_qty": new_qty,
         }
 
+    @log_action('SELL', verbose=True)
     def sell_currency(self, user_id, currency, amount):
         try:
             amount = float(amount)
