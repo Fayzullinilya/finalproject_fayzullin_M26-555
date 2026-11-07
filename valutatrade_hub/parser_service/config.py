@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class ParserConfig:
@@ -15,11 +15,11 @@ class ParserConfig:
     CRYPTO_CURRENCIES: tuple[str, ...] = ("BTC", "ETH", "SOL")
 
     # Маппинг тикеров для CoinGecko
-    CRYPTO_ID_MAP: dict[str, str] = {
+    CRYPTO_ID_MAP: dict[str, str] = field(default_factory=lambda: {
         "BTC": "bitcoin",
         "ETH": "ethereum",
         "SOL": "solana"
-    }
+    })
 
     # Параметры
     BASE_FIAT_CURRENCY: str = "USD"
@@ -28,8 +28,9 @@ class ParserConfig:
     UPDATE_INTERVAL_SEC: int = 60
 
     # Пути к файлам
-    RATES_CACHE_PATH: str = os.path.join("data","rates.json")
-    EXCHANGE_RATES_PATH: str  = os.path.join("data","exchange_rates.json")
+    DATA_PATH: str = "data"
+    RATES_CACHE_FILE: str = "rates.json"
+    EXCHANGE_RATES_FILE: str  = "exchange_rates.json"
 
 # Создание синглтона на уровне модуля
 PARSER_CONFIG = ParserConfig()

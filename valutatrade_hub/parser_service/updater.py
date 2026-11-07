@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 from valutatrade_hub.parser_service.config import PARSER_CONFIG
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("valutatrade")
 
 
 class RatesUpdater:

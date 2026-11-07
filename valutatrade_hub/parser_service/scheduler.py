@@ -11,7 +11,7 @@ import time
 
 from valutatrade_hub.parser_service.config import PARSER_CONFIG
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("valutatrade")
 
 
 class UpdateScheduler:
