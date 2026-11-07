@@ -25,6 +25,7 @@ class ParserConfig:
     BASE_FIAT_CURRENCY: str = "USD"
     REQUEST_TIMEOUT: int = 10
     RATE_TTL_SEC: int = 300
+    UPDATE_INTERVAL_SEC: int = 60
 
     # Пути к файлам
     RATES_CACHE_PATH: str = os.path.join("data","rates.json")
