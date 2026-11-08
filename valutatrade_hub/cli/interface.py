@@ -3,7 +3,7 @@ import prompt
 import shlex
 
 from valutatrade_hub.core.usecases import Auth, PortfolioService
-from valutatrade_hub.core.exceptions import InsufficientFundsError, CurrencyNotFoundError
+from valutatrade_hub.core.exceptions import InsufficientFundsError, CurrencyNotFoundError, ApiRequestError
 
 class CLI:
     def __init__(self):
@@ -15,6 +15,8 @@ class CLI:
             "buy": self.handle_buy,
             "sell": self.handle_sell,
             "get-rate": self.handle_get_rate,
+            "update-rates": self.handle_update_rates,
+            "show-rates": self.handle_show_rates,
             "help": self.handle_help,
         }
         self.user_auth = Auth()
@@ -101,6 +103,7 @@ class CLI:
         print(" - buy --currency <code> --amount <qty>")
         print(" - sell --currency <code> --amount <qty>")
         print(" - get-rate --from <code> --to <code>")
+        print(" - update-rates [--source <coingecko/exchangerate>]")        
 
     def handle_register(self, args: list[str]) -> None:
 
@@ -306,18 +309,7 @@ class CLI:
                 print("Ошибка: укажите обе валюты. Пример: get-rate --from EUR --to BTC")
                 return
 
-            from_code = from_currency.strip().upper()
-            to_code = to_currency.strip().upper()
-
-            # 2. Валидация: ровно 3 латинские буквы (без regex, как ты хотел)
-            if len(from_code) != 3 or not from_code.isalpha():
-                print(f"Ошибка: '{from_currency}' не является корректным кодом валюты (ожидаются 3 латинские буквы).")
-                return
-            if len(to_code) != 3 or not to_code.isalpha():
-                print(f"Ошибка: '{to_currency}' не является корректным кодом валюты.")
-                return
-
-            rate_result = self.portfolio_service.get_rate(from_code, to_code)
+            rate_result = self.portfolio_service.get_rate(from_currency, to_currency)
 
             if not rate_result["is_valid"]:
                 missing = ", ".join(rate_result["missing"])
@@ -335,3 +327,63 @@ class CLI:
             print(f"Ошибка данных: отсутствует поле {e}")
         except Exception as e:
             print(f"Не удалось выполнить продажу: {e}")
+
+    def handle_update_rates(self, args: list[str]) -> None:
+
+        try:
+            source = self._get_arg_value(args, '--source')
+            if source is not None and source not in ("coingecko","exchangerate"):
+                raise ValueError(
+                    "Атрибут --source может принимать значения "
+                    "coingecko / exchangerate"
+                )
+            result = self.portfolio_service.update_rates(source)
+
+            for name, count in result["ok"].items():
+                print(f"INFO: Получение курсов от {name}... OK ({count} курсов)")
+            for name, err in result["failed"].items():
+                print(f"ОШИБКА: Не удалось получить данные от {name}: {err}")
+
+            print(f"INFO: Запись {result['total']} курсов в data/rates.json...")
+
+            if result["failed"]:
+                print("Обновление завершено с ошибками. Подробности в logs/parser.log.")
+            else:
+                print(f"Обновление успешно. Всего обновлено курсов: {result['total']}. "
+                    f"Последнее обновление: {result['last_refresh']}")
+
+        except ApiRequestError as e:
+            print(f"Ошибка: {str(e)}")
+        except ValueError as e:
+            print(f"Ошибка: {str(e)}")
+        except Exception as e:
+            print(str(e))
+
+    def handle_show_rates(self, args) -> None:
+        currency = self._get_arg_value(args, '--currency')
+        top = self._get_arg_value(args, '--top')
+        base = self._get_arg_value(args, '--base')
+
+        # Валидация
+        try:
+            if top is not None:
+                top = int(top)
+                if top <= 0:
+                    raise ValueError("Аргумент --top должен быть положительным целым числом.")
+            for name, value in (("--currency", currency), ("--base", base)):
+                if value is not None and not value.isalpha():
+                    raise ValueError(f"Аргумент {name} должен быть кодом валюты, например BTC или EUR.")
+        except ValueError as e:
+            print(f"Ошибка: {str(e)}")
+            return
+
+        try:
+            result = self.portfolio_service.show_rates(currency=currency, top=top, base=base)
+        except (ValueError, CurrencyNotFoundError) as e:
+            print(f"Ошибка: {str(e)}")
+            return
+
+        # Вывод
+        print(f"Rates from cache (updated at {result['last_refresh']}):")
+        for row in result["rows"]:
+            print(f"- {row['pair']}: {row['rate']:.4f}")    

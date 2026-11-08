@@ -8,6 +8,11 @@ from valutatrade_hub.core.models import Portfolio, Wallet
 from valutatrade_hub.core.currencies import Currency
 from valutatrade_hub.decorators import log_action
 from valutatrade_hub.infra.settings import SettingsLoader
+from valutatrade_hub.parser_service.api_clients import CoinGeckoClient, ExchangeRateApiClient
+from valutatrade_hub.parser_service.storage import RatesStorage
+from valutatrade_hub.parser_service.updater import RatesUpdater
+from valutatrade_hub.parser_service.config import PARSER_CONFIG
+from valutatrade_hub.core.exceptions import CurrencyNotFoundError
 
 class Auth:
     def __init__(self):
@@ -349,4 +354,70 @@ class PortfolioService:
             "base": "USD",
             "missing": [],
             "is_valid": True,
+        }
+    
+    def update_rates(self, source:str):
+
+        storage = RatesStorage(
+            data_dir=PARSER_CONFIG.DATA_PATH,
+            journal_file=PARSER_CONFIG.EXCHANGE_RATES_FILE,
+            snapshot_file=PARSER_CONFIG.RATES_CACHE_FILE
+        )
+        clients = []
+        if source is None or source == "coingecko":
+            clients.append(CoinGeckoClient())
+        if source is None or source == "exchangerate":
+            clients.append(ExchangeRateApiClient())
+
+        updater = RatesUpdater(clients=clients, storage=storage)
+        result = updater.run_update()
+
+        return result
+
+
+    def show_rates(self, currency=None, top=None, base=None) -> dict:
+        """
+        Читает кеш, применяет фильтры и сортировку.
+        Возвращает: {"last_refresh": ..., "rows": [{"pair": ..., "rate": ..., "updated_at": ...}, ...]}
+        """
+        snapshot = self.rates_storage.read()
+        if not snapshot or not snapshot.get("pairs"):
+            raise ValueError("Локальный кеш курсов пуст. Выполните 'update-rates', чтобы загрузить данные.")
+
+        pairs = dict(snapshot["pairs"])
+
+        # Фильтр по валюте
+        if currency is not None:
+            pairs = {k: v for k, v in pairs.items() if k.startswith(f"{currency}_")}
+            if not pairs:
+                raise CurrencyNotFoundError(currency)
+
+        # Пересчёт относительно другой базы
+        if base is not None and base != "USD":
+            base_key = f"{base}_USD"
+            if base_key not in pairs:
+                raise CurrencyNotFoundError(base)
+            base_rate = pairs[base_key]["rate"]
+            pairs = {
+                f"{k.split('_')[0]}_{base}": {
+                    "rate": info["rate"] / base_rate,
+                    "updated_at": info["updated_at"],
+                    "source": info["source"],
+                }
+                for k, info in pairs.items()
+                if k.split("_")[0] != base
+            }
+
+        # Сортировка: --top — по значению, иначе по алфавиту
+        if top is not None:
+            items = sorted(pairs.items(), key=lambda kv: kv[1]["rate"], reverse=True)[:top]
+        else:
+            items = sorted(pairs.items())
+
+        return {
+            "last_refresh": snapshot.get("last_refresh"),
+            "rows": [
+                {"pair": key, "rate": info["rate"], "updated_at": info["updated_at"]}
+                for key, info in items
+            ],
         }
