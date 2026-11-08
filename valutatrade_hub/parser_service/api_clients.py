@@ -98,7 +98,7 @@ class ExchangeRateApiClient(BaseApiClient):
             if not isinstance(rate, (int, float)) or rate <= 0:
                 raise ApiRequestError(f"ExchangeRate API не вернул корректный курс для {fiat}")
             result[fiat] = {
-                "rate": rate,
+                "rate": 1.0 / rate,
                 "timestamp": now,
                 "source": "ExchangeRate-API"
             }

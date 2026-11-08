@@ -16,6 +16,7 @@ class CLI:
             "sell": self.handle_sell,
             "get-rate": self.handle_get_rate,
             "update-rates": self.handle_update_rates,
+            "show-rates": self.handle_show_rates,
             "help": self.handle_help,
         }
         self.user_auth = Auth()
@@ -308,7 +309,7 @@ class CLI:
                 print("Ошибка: укажите обе валюты. Пример: get-rate --from EUR --to BTC")
                 return
 
-            rate_result = self.portfolio_service.get_rate(from_code, to_code)
+            rate_result = self.portfolio_service.get_rate(from_currency, to_currency)
 
             if not rate_result["is_valid"]:
                 missing = ", ".join(rate_result["missing"])
@@ -357,3 +358,32 @@ class CLI:
             print(f"Ошибка: {str(e)}")
         except Exception as e:
             print(str(e))
+
+    def handle_show_rates(self, args) -> None:
+        currency = self._get_arg_value(args, '--currency')
+        top = self._get_arg_value(args, '--top')
+        base = self._get_arg_value(args, '--base')
+
+        # Валидация
+        try:
+            if top is not None:
+                top = int(top)
+                if top <= 0:
+                    raise ValueError("Аргумент --top должен быть положительным целым числом.")
+            for name, value in (("--currency", currency), ("--base", base)):
+                if value is not None and not value.isalpha():
+                    raise ValueError(f"Аргумент {name} должен быть кодом валюты, например BTC или EUR.")
+        except ValueError as e:
+            print(f"Ошибка: {str(e)}")
+            return
+
+        try:
+            result = self.portfolio_service.show_rates(currency=currency, top=top, base=base)
+        except (ValueError, CurrencyNotFoundError) as e:
+            print(f"Ошибка: {str(e)}")
+            return
+
+        # Вывод
+        print(f"Rates from cache (updated at {result['last_refresh']}):")
+        for row in result["rows"]:
+            print(f"- {row['pair']}: {row['rate']:.4f}")    
