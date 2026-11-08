@@ -20,11 +20,7 @@ class RatesUpdater:
         self._clients = clients
         self._storage = storage
 
-    def _build_journal_records(self, merged, base_currency):
-
-        return records
-
-    def run_update(self) -> dict:
+    def run_update(self, source=None) -> dict:
         """
         Собирает курсы от всех клиентов и сохраняет их.
         Возвращает обновлённый снимок (содержимое rates.json).
@@ -33,14 +29,18 @@ class RatesUpdater:
 
         # Опрашиваем всех клиентов
         merged = {}
+        report = {"ok": {}, "failed": {}, "total": 0, "last_refresh": None}
+
         for client in self._clients:
             name = type(client).__name__
             logger.info(f"Запрос к {name}...")
             try:
                 rates = client.fetch_rates()
             except Exception as e:
+                report["failed"][name] = str(e)
                 logger.error(f"{name} не дал данных: {e}")
                 continue
+            report["ok"][name] = len(rates)
             logger.info(f"{name} вернул {len(rates)} курсов")
             merged.update(rates)
 
@@ -78,5 +78,9 @@ class RatesUpdater:
 
         # Обновляем кэш
         self._storage.update_snapshot(snapshot)
+
+        report["total"] = len(snapshot["pairs"])
+        report["last_refresh"] = snapshot["last_refresh"]
+
         logger.info(f"Обновление завершено, last_refresh={snapshot['last_refresh']}")
-        return snapshot
+        return report

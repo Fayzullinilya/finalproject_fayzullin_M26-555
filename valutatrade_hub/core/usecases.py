@@ -8,6 +8,10 @@ from valutatrade_hub.core.models import Portfolio, Wallet
 from valutatrade_hub.core.currencies import Currency
 from valutatrade_hub.decorators import log_action
 from valutatrade_hub.infra.settings import SettingsLoader
+from valutatrade_hub.parser_service.api_clients import CoinGeckoClient, ExchangeRateApiClient
+from valutatrade_hub.parser_service.storage import RatesStorage
+from valutatrade_hub.parser_service.updater import RatesUpdater
+from valutatrade_hub.parser_service.config import PARSER_CONFIG
 
 class Auth:
     def __init__(self):
@@ -350,3 +354,21 @@ class PortfolioService:
             "missing": [],
             "is_valid": True,
         }
+    
+    def update_rates(self, source:str):
+
+        storage = RatesStorage(
+            data_dir=PARSER_CONFIG.DATA_PATH,
+            journal_file=PARSER_CONFIG.EXCHANGE_RATES_FILE,
+            snapshot_file=PARSER_CONFIG.RATES_CACHE_FILE
+        )
+        clients = []
+        if source is None or source == "coingecko":
+            clients.append(CoinGeckoClient())
+        if source is None or source == "exchangerate":
+            clients.append(ExchangeRateApiClient())
+
+        updater = RatesUpdater(clients=clients, storage=storage)
+        result = updater.run_update()
+
+        return result
