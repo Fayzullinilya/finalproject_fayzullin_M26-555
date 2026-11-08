@@ -12,9 +12,10 @@ class InsufficientFundsError(Exception):
 
 
 class CurrencyNotFoundError(Exception):
-    def __init__(self, code: str):
+    def __init__(self, code: str, available: str):
         self.code = code
-        message = f"Неизвестная валюта '{code}'"
+        self.available = available
+        message = f"Неизвестная валюта '{code}'. Досткпны валюты: {available}."
         super().__init__(message)
 
 

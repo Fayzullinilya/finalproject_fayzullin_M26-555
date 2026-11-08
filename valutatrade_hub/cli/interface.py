@@ -1,9 +1,15 @@
 # valutatrade_hub\cli\interface.py
-import prompt
 import shlex
 
+import prompt
+
+from valutatrade_hub.core.exceptions import (
+    ApiRequestError,
+    CurrencyNotFoundError,
+    InsufficientFundsError,
+)
 from valutatrade_hub.core.usecases import Auth, PortfolioService
-from valutatrade_hub.core.exceptions import InsufficientFundsError, CurrencyNotFoundError, ApiRequestError
+
 
 class CLI:
     def __init__(self):
@@ -59,18 +65,23 @@ class CLI:
 
     def run(self) -> None:
         while True:
-            # Временно передаем ID. поменяем на объект сессию и имя пользователя
-            active_user = str(self._current_user_id) if self._is_logged_in else "Guest"
             try:
+                # Временно передаем ID. поменяем на объект сессию и имя пользователя
+                active_user = str(self._current_user_id) if self._is_logged_in else "Guest"
+            
                 user_input = prompt.string(f"\n<{active_user}> Введите команду: ")
+
+
+                if user_input.strip().lower() == "exit":
+                    break
+
+                self.process_command(user_input)
             except (EOFError, KeyboardInterrupt):
                 print("\nВыход из CLI.")
                 break
-
-            if user_input.strip().lower() == "exit":
-                break
-
-            self.process_command(user_input)
+            except Exception as e: # noqa: BLE001 — страховка цикла: выводим сообщение
+                                   # в консоль и продолжаем работу
+                print(f"Непредвиденная ошибка: {e}")
 
     def process_command(self, command_line: str) -> None:
         try:
@@ -129,11 +140,9 @@ class CLI:
                 f"Войдите: login --username {username} --password ****"
             )
         except ValueError as e:
-            print(f"Ошибка: {str(e)}")
+            print(f"Ошибка: {e!s}")
         except FileNotFoundError:
             print("Не удалось сохранить данные: файл базы не найден.")
-        except Exception as e:
-            print(f"Не удалось зарегистрировать пользователя: {e}")
 
     def handle_login(self, args: list[str]) -> None:
         try:
@@ -156,9 +165,7 @@ class CLI:
             self._set_current_user(user_id)
             print(f"Вы вошли как '{username}'.")
         except ValueError as e:
-            print(f"Ошибка: {str(e)}")
-        except Exception as e:
-            print(f"Не удалось войти: {e}")
+            print(f"Ошибка: {e!s}")
 
     def handle_show_portfolio(self, args: list[str]) -> None:
         if not self._is_logged_in():
@@ -168,25 +175,9 @@ class CLI:
             )            
             return
 
-        base_currency = "USD"
-
         try:
-            currency = self._get_arg_value(args, '--base')
-        except ValueError as e:
-            print(str(e))
-            return
+            base_currency = self._get_arg_value(args, '--base')
 
-        if currency is not None:
-            if (len(currency) == 3 and currency.isalpha() and currency.isascii()):
-                base_currency = currency.upper()
-            else:
-                print(
-                    f"Ошибка: {currency} не является кодом валюты в  "
-                    "формате стандарта ISO (например: EUR, RUB)."
-                )
-                return
-            
-        try:
             data =self.portfolio_service.show_portfolio(self.current_user_id, base_currency)
             user = data.get("user", "")
             total = data.get("total", 0.0)
@@ -206,13 +197,11 @@ class CLI:
             print("-" * 32)
             print(f"ИТОГО: {total:,.2f} {base_currency}")
         except CurrencyNotFoundError as e:
-            print(f"Ошибка: {str(e)}")
+            print(f"Ошибка: {e!s}")
         except KeyError as e:
             print(f"Ошибка данных портфеля: отсутствует поле {e}")
         except ValueError as e:
             print(str(e))
-        except Exception as e:
-            print(f"Не удалось показать портфель: {e}")
 
     def handle_buy(self, args: list[str]) -> None:
         if not self._is_logged_in():
@@ -225,14 +214,11 @@ class CLI:
         try:
             currency = self._get_arg_value(args, '--currency')
             amount = self._get_arg_value(args, '--amount')
-        except ValueError as e:
-            print(str(e))
 
-        if currency is None or amount is None:
-            print("Ошибка: аргументы --currency и --amount обязательны.")
-            return
+            if currency is None or amount is None:
+                print("Ошибка: аргументы --currency и --amount обязательны.")
+                return
 
-        try:
             result = self.portfolio_service.buy_currency(self.current_user_id, currency, amount)
             rate = result["rate"]
             cost = result["cost"]
@@ -247,13 +233,11 @@ class CLI:
             print(f"- {currency}: было {prev_qty:.4f} → стало {new_qty:.4f}")
             print(f"Оценочная стоимость покупки: {cost:,.2f} USD")
         except CurrencyNotFoundError as e:
-            print(f"Ошибка: {str(e)}")
+            print(f"Ошибка: {e!s}")
         except ValueError as e:
             print(str(e))
         except KeyError as e:
             print(f"Ошибка данных: отсутствует поле {e}")
-        except Exception as e:
-            print(f"Не удалось выполнить покупку: {e}")
 
     def handle_sell(self, args: list[str]) -> None:
         if not self._is_logged_in():
@@ -266,14 +250,11 @@ class CLI:
         try:
             currency = self._get_arg_value(args, '--currency')
             amount = self._get_arg_value(args, '--amount')
-        except ValueError as e:
-            print(str(e))
 
-        if currency is None or amount is None:
-            print("Ошибка: аргументы --currency и --amount обязательны.")
-            return
+            if currency is None or amount is None:
+                print("Ошибка: аргументы --currency и --amount обязательны.")
+                return
 
-        try:
             result = self.portfolio_service.sell_currency(self.current_user_id, currency, amount)
             rate = result["rate"]
             revenue = result["revenue"]
@@ -288,15 +269,13 @@ class CLI:
             print(f"- {currency}: было {prev_qty:.4f} → стало {new_qty:.4f}")
             print(f"Оценочная выручка: {revenue:,.2f} USD")
         except CurrencyNotFoundError as e:
-            print(f"Ошибка: {str(e)}")
+            print(f"Ошибка: {e!s}")
         except InsufficientFundsError as e:
             print(str(e))
         except ValueError as e:
             print(str(e))
         except KeyError as e:
             print(f"Ошибка данных: отсутствует поле {e}")
-        except Exception as e:
-            print(f"Не удалось выполнить продажу: {e}")
 
     def handle_get_rate(self, args: list[str]) -> None:
         """Обрабатывает команду get-rate --from <code> --to <code>."""
@@ -320,13 +299,11 @@ class CLI:
             print(f"Курс {rate_result['from']}→{rate_result['to']}: {rate_result['rate']:.8f}")
             print(f"Обратный курс {rate_result['to']}→{rate_result['from']}: {rate_result['inverse_rate']:.2f}")
         except CurrencyNotFoundError as e:
-            print(f"Ошибка: {str(e)}")
+            print(f"Ошибка: {e!s}")
         except ValueError as e:
             print(str(e))
         except KeyError as e:
             print(f"Ошибка данных: отсутствует поле {e}")
-        except Exception as e:
-            print(f"Не удалось выполнить продажу: {e}")
 
     def handle_update_rates(self, args: list[str]) -> None:
 
@@ -353,19 +330,17 @@ class CLI:
                     f"Последнее обновление: {result['last_refresh']}")
 
         except ApiRequestError as e:
-            print(f"Ошибка: {str(e)}")
+            print(f"Ошибка: {e!s}")
         except ValueError as e:
-            print(f"Ошибка: {str(e)}")
-        except Exception as e:
-            print(str(e))
+            print(f"Ошибка: {e!s}")
 
     def handle_show_rates(self, args) -> None:
-        currency = self._get_arg_value(args, '--currency')
-        top = self._get_arg_value(args, '--top')
-        base = self._get_arg_value(args, '--base')
-
-        # Валидация
         try:
+            currency = self._get_arg_value(args, '--currency')
+            top = self._get_arg_value(args, '--top')
+            base = self._get_arg_value(args, '--base')
+
+            # Валидация
             if top is not None:
                 top = int(top)
                 if top <= 0:
@@ -373,17 +348,14 @@ class CLI:
             for name, value in (("--currency", currency), ("--base", base)):
                 if value is not None and not value.isalpha():
                     raise ValueError(f"Аргумент {name} должен быть кодом валюты, например BTC или EUR.")
-        except ValueError as e:
-            print(f"Ошибка: {str(e)}")
-            return
 
-        try:
             result = self.portfolio_service.show_rates(currency=currency, top=top, base=base)
-        except (ValueError, CurrencyNotFoundError) as e:
-            print(f"Ошибка: {str(e)}")
-            return
 
-        # Вывод
-        print(f"Rates from cache (updated at {result['last_refresh']}):")
-        for row in result["rows"]:
-            print(f"- {row['pair']}: {row['rate']:.4f}")    
+            # Вывод
+            print(f"Rates from cache (updated at {result['last_refresh']}):")
+            for row in result["rows"]:
+                print(f"- {row['pair']}: {row['rate']:.4f}")
+        
+        except (ValueError, CurrencyNotFoundError) as e:
+            print(f"Ошибка: {e}")
+            return 

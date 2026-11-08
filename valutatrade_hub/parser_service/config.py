@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass, field
 
+
 @dataclass(frozen=True)
 class ParserConfig:
     #  API ключ из переменной окружения

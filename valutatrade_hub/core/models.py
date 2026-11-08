@@ -1,12 +1,14 @@
 # valutatrade_hub\core\models.py
 import hashlib
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 from valutatrade_hub.core.exceptions import InsufficientFundsError
+
 
 class User:
     def __init__(self, user_id: int, username: str, hashed_password: str,
-                 salt: str, registration_date: datetime = None
+                 salt: str, registration_date: datetime | None = None
     ):
         if not isinstance(user_id, int) or user_id <= 0:
             raise ValueError("user_id должен быть положительным целым числом")
@@ -55,14 +57,14 @@ class User:
         self._username = value.strip()
 
     @registration_date.setter
-    def registration_date(self, value: datetime = None):
+    def registration_date(self, value: datetime | None = None):
         if value is None:
-            value = datetime.now(timezone.utc)
+            value = datetime.now(UTC)
 
         if not isinstance(value, datetime):
             raise TypeError("registration_date должен быть объектом datetime")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if value > now:
             raise ValueError(f"Дата регистрации не может быть в будущем (сейчас: {now}, передано: {value})")
 
@@ -108,7 +110,7 @@ class User:
         reg_date_str = data.get("registration_date", None)
         if reg_date_str:
             try:
-                reg_date = datetime.fromisoformat(reg_date_str.replace('Z', '+00:00'))
+                reg_date = datetime.fromisoformat(reg_date_str)
             except ValueError as e:
                 raise ValueError(
                     f"Некорректный формат registration_date: {reg_date_str!r}"

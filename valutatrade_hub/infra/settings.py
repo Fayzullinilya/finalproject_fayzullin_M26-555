@@ -1,12 +1,15 @@
 
 import json
-import tomllib
 import os
+import tomllib
+from typing import ClassVar
+
 from valutatrade_hub.infra.metaclass import MetaClass
+
 
 class SettingsLoader(metaclass=MetaClass):
     # Дефолтные знаения сохранятся, если json и toml окажутся недоступными
-    _DEFAULTS = {
+    _DEFAULTS: ClassVar[dict] = {
         "data_dir": "data",
         "users_data_file" : "users.json",
         "portfolios_data_file" : "portfolios.json",

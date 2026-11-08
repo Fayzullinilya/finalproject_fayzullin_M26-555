@@ -48,7 +48,7 @@ class RatesStorage:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.error(f"Не удалось прочитать файл {path}: {e}")
             return None
 
@@ -62,7 +62,7 @@ class RatesStorage:
             with os.fdopen(tmp_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             os.replace(tmp_path, path)
-        except (TypeError, IOError, OSError) as e:
+        except (TypeError, OSError) as e:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
             logger.error(f"Ошибка записи файла {path}: {e}")

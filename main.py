@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 
-from valutatrade_hub.cli.interface import CLI
 import argparse
 import logging
-from valutatrade_hub.logging_config import setup_logging
 import threading
-from valutatrade_hub.parser_service.api_clients import CoinGeckoClient, ExchangeRateApiClient
+
+from valutatrade_hub.cli.interface import CLI
+from valutatrade_hub.logging_config import setup_logging
+from valutatrade_hub.parser_service.api_clients import (
+    CoinGeckoClient,
+    ExchangeRateApiClient,
+)
+from valutatrade_hub.parser_service.config import PARSER_CONFIG
 from valutatrade_hub.parser_service.scheduler import UpdateScheduler
 from valutatrade_hub.parser_service.storage import RatesStorage
 from valutatrade_hub.parser_service.updater import RatesUpdater
-from valutatrade_hub.parser_service.config import PARSER_CONFIG
+
 
 def start_scheduler():
     """Собирает зависимости парсера и запускает цикл обновления."""

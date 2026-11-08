@@ -6,7 +6,7 @@
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from valutatrade_hub.parser_service.config import PARSER_CONFIG
 
@@ -36,7 +36,8 @@ class RatesUpdater:
             logger.info(f"Запрос к {name}...")
             try:
                 rates = client.fetch_rates()
-            except Exception as e:
+            except Exception as e: # noqa: BLE001 — страховка цикла: логируем
+                                       # пишем в отчет и продолжаем работу
                 report["failed"][name] = str(e)
                 logger.error(f"{name} не дал данных: {e}")
                 continue
@@ -65,7 +66,7 @@ class RatesUpdater:
 
         # Собираем снимок целиком: пары + метаданные
         snapshot = {
-            "last_refresh": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "last_refresh": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "pairs": {
                 f"{r['from_currency']}_{r['to_currency']}": {
                     "rate": r["rate"],

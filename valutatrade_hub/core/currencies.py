@@ -1,17 +1,12 @@
 # currencies.py
 from abc import ABC, abstractmethod
+
 from valutatrade_hub.core.exceptions import CurrencyNotFoundError
+from valutatrade_hub.infra.settings import SettingsLoader
+
 
 class Currency(ABC):
-    # Реестр известных валют
-    _currency_dict = {
-        "USD": {"type": "fiat", "name": "Доллар США", "country": "США"},
-        "EUR": {"type": "fiat", "name": "Евро", "country": "Еврозона"},
-        "RUB": {"type": "fiat", "name": "Российский рубль", "country": "Россия"},
-        "BTC": {"type": "crypto", "name": "Bitcoin", "algorithm": "SHA-256", "market_cap": 1000000000000},
-        "ETH": {"type": "crypto", "name": "Ethereum", "algorithm": "Ethash", "market_cap": 500000000000},
-    }
-    
+
     def __init__(self, name: str, code: str):
         name = name.strip()
         code = code.replace(" ", "").strip().upper()
@@ -29,10 +24,12 @@ class Currency(ABC):
     @classmethod
     def get_currency(cls, code: str) -> "Currency":
         code = code.replace(" ", "").strip().upper()
-        data = cls._currency_dict.get(code)
+        settings = SettingsLoader()
+        currency_reg = settings.get("CURRENCY_REGISTRY", {})
+        data = currency_reg.get(code, "")
         if data is None:
-            available = ", ".join(cls._currency_dict.keys())
-            raise CurrencyNotFoundError(code)
+            available = ", ".join(currency_reg.keys())
+            raise CurrencyNotFoundError(code, available)
         if data["type"] == "fiat":
             return FiatCurrency(data["name"], code, data["country"])
         return CryptoCurrency(data["name"], code, data["algorithm"], data["market_cap"])

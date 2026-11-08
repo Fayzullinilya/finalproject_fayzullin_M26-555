@@ -35,13 +35,12 @@ class UpdateScheduler:
             while True:
                 try:
                     self._updater.run_update()
-                except Exception as e:
-                    logger.error(f"Обновление не удалось: {str(e)}")
+                except Exception as e: # noqa: BLE001 — страховка цикла: логируем
+                                       # и продолжаем работу
+                    logger.error(f"Обновление не удалось: {e!s}")
                 else:
                     logger.info("Обновление прошло успешно.")
 
                 time.sleep(self._interval_sec)
         except KeyboardInterrupt:
             logger.info("Планировщик остановлен (Ctrl+C).")
-        except Exception as e:
-            logger.error(f"Ошибка: {str(e)}")

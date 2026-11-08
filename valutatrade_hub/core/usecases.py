@@ -1,18 +1,23 @@
 # valutatrade_hub\core\usecases.py
-import os
 import hashlib
+import os
 import secrets
-from datetime import datetime, timezone
-from valutatrade_hub.core.utils import JsonStorage
-from valutatrade_hub.core.models import Portfolio, Wallet
+from datetime import UTC, datetime
+
 from valutatrade_hub.core.currencies import Currency
+from valutatrade_hub.core.exceptions import CurrencyNotFoundError
+from valutatrade_hub.core.models import Portfolio, Wallet
+from valutatrade_hub.core.utils import JsonStorage
 from valutatrade_hub.decorators import log_action
 from valutatrade_hub.infra.settings import SettingsLoader
-from valutatrade_hub.parser_service.api_clients import CoinGeckoClient, ExchangeRateApiClient
+from valutatrade_hub.parser_service.api_clients import (
+    CoinGeckoClient,
+    ExchangeRateApiClient,
+)
+from valutatrade_hub.parser_service.config import PARSER_CONFIG
 from valutatrade_hub.parser_service.storage import RatesStorage
 from valutatrade_hub.parser_service.updater import RatesUpdater
-from valutatrade_hub.parser_service.config import PARSER_CONFIG
-from valutatrade_hub.core.exceptions import CurrencyNotFoundError
+
 
 class Auth:
     def __init__(self):
@@ -55,7 +60,7 @@ class Auth:
         hashed_password = hashlib.sha256((password + salt).encode("utf-8")).hexdigest()
 
         # Генерируем дату в UTC, сразу в нужном формате: с +00:00 вместо Z
-        reg_date = datetime.now(timezone.utc)
+        reg_date = datetime.now(UTC)
         registration_date_str = reg_date.isoformat()  
         # например: 2025-11-03T14:22:10.123456+00:00
 

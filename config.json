@@ -11,5 +11,56 @@
         "log_max_mb": 5,
         "log_count" : 5,
         "base_currency": "USD",
-        "RATES_TTL_SECONDS": 300
+        "RATES_TTL_SECONDS": 300,
+        "CURRENCY_REGISTRY": {
+                "USD": {
+                "type": "fiat",
+                "name": "Доллар США",
+                "country": "США"
+                },
+                "EUR": {
+                "type": "fiat",
+                "name": "Евро",
+                "country": "Еврозона"
+                },
+                "RUB": {
+                "type": "fiat",
+                "name": "Российский рубль",
+                "country": "Россия"
+                },
+                "GBP": {
+                "type": "fiat",
+                "name": "Британский фунт стерлингов",
+                "country": "Великобритания"
+                },
+                "JPY": {
+                "type": "fiat",
+                "name": "Японская иена",
+                "country": "Япония"
+                },
+                "CNY": {
+                "type": "fiat",
+                "name": "Китайский юань",
+                "country": "Китай"
+                },
+                "BTC": {
+                "type": "crypto",
+                "name": "Bitcoin",
+                "algorithm": "SHA-256",
+                "market_cap": 1000000000000
+                },
+                "ETH": {
+                "type": "crypto",
+                "name": "Ethereum",
+                "algorithm": "Ethash",
+                "market_cap": 500000000000
+                },
+                "SOL": {
+                "type": "crypto",
+                "name": "Solana",
+                "algorithm": "Proof of Stake (PoS)",
+                "market_cap": 60000000000
+                }
+        }
+
 }

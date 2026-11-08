@@ -1,16 +1,17 @@
-import requests
-from datetime import datetime, timezone
 from abc import ABC, abstractmethod
+from datetime import UTC, datetime
 
-from valutatrade_hub.parser_service.config import PARSER_CONFIG
+import requests
+
 from valutatrade_hub.core.exceptions import ApiRequestError
+from valutatrade_hub.parser_service.config import PARSER_CONFIG
+
 
 class BaseApiClient(ABC):
     
     @abstractmethod
     def fetch_rates(self) -> dict:
         """Возвращает курсы в формате {"BTC_USD": 59337.21, ...}."""
-        pass
 
 
 class CoinGeckoClient(BaseApiClient):
@@ -38,7 +39,7 @@ class CoinGeckoClient(BaseApiClient):
         except requests.exceptions.RequestException as e:
             raise ApiRequestError(f"Ошибка запроса к CoinGecko: {e}") from e
 
-        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         result = {}
         for code in PARSER_CONFIG.CRYPTO_CURRENCIES:
             gecko_id = PARSER_CONFIG.CRYPTO_ID_MAP[code]
@@ -91,7 +92,7 @@ class ExchangeRateApiClient(BaseApiClient):
         if not isinstance(rates, dict):
             raise ApiRequestError("ExchangeRate API вернул неожиданный формат ответа")
 
-        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         result = {}
         for fiat in PARSER_CONFIG.FIAT_CURRENCIES:
             rate = rates.get(fiat)

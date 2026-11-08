@@ -2,6 +2,7 @@
 import json
 import os
 
+
 class JsonStorage:
     def __init__(self, filepath: str, expected_type: type = list) -> None:
         """
@@ -25,7 +26,7 @@ class JsonStorage:
         with open(self.filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
             if not isinstance(data, self.expected_type):
-                raise ValueError(
+                raise TypeError(
                     f"Ожидался тип {self.expected_type.__name__} в JSON-файле, "
                     f"получен {type(data).__name__}."
                 )
@@ -37,7 +38,7 @@ class JsonStorage:
         Пишет во временный файл, затем переименовывает.
         """
         if not isinstance(data, list):
-            raise ValueError("Для записи ожидается список.")
+            raise TypeError("Для записи ожидается список.")
 
         tmp_path = self.filepath + ".tmp"
         try:
