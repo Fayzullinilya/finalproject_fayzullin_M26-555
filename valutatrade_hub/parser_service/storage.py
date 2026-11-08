@@ -16,7 +16,7 @@ import logging
 import os
 import tempfile
 
-logger = logging.getLogger("valutatrade")
+logger = logging.getLogger("valutatrade.parser")
 
 
 class RatesStorage:
@@ -68,11 +68,11 @@ class RatesStorage:
             logger.error(f"Ошибка записи файла {path}: {e}")
             raise
 
-    def update_journal(self, records: list) -> None:
+    def update_journal(self, records: list) -> int:
         """
         Добавляет записи в журнал с проверкой на дубликаты по полю id.
         Принимает список готовых словарей. Каждый должен содержать поле "id".
-
+        Возвращает количество добавленых записей.
         """
         journal = self._read_file(self.journal_path)
         if not isinstance(journal, list):
@@ -83,7 +83,9 @@ class RatesStorage:
 
         journal.extend(new_records)
         self._write_file(self.journal_path, journal)
-
+        
+        return len(new_records)
+    
     def update_snapshot(self, snapshot: dict) -> None:
         """
         Перезаписывает снимок курсов целиком.

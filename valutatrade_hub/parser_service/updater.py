@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 from valutatrade_hub.parser_service.config import PARSER_CONFIG
 
-logger = logging.getLogger("valutatrade")
+logger = logging.getLogger("valutatrade.parser")
 
 
 class RatesUpdater:
@@ -21,20 +21,7 @@ class RatesUpdater:
         self._storage = storage
 
     def _build_journal_records(self, merged, base_currency):
-        """Преобразует словарь курсов в записи журнала с готовыми id."""
-        records = []
-        for code, info in merged.items():
-            iso_time = datetime.fromtimestamp(
-                info["timestamp"], tz=timezone.utc
-            ).strftime("%Y-%m-%dT%H:%M:%SZ")
-            records.append({
-                "id": f"{code}_{base_currency}_{iso_time}",
-                "from_currency": code,
-                "to_currency": base_currency,
-                "rate": info["rate"],
-                "timestamp": info["timestamp"],
-                "source": info["source"],
-            })
+
         return records
 
     def run_update(self) -> dict:
@@ -58,11 +45,21 @@ class RatesUpdater:
             merged.update(rates)
 
         if not merged:
-            logger.error("Ни один клиент не вернул данные — обновление отменено")
-            raise RuntimeError("Обновление не удалось: нет данных ни от одного клиента")
+            raise RuntimeError("Нет данных ни от одного клиента")
+
+        # Преобразуем словарь курсов в записи журнала с id
+        records = []
+        for code, info in merged.items():
+            records.append({
+                "id": f"{code}_{PARSER_CONFIG.BASE_FIAT_CURRENCY}_{info["timestamp"]}",
+                "from_currency": code,
+                "to_currency": PARSER_CONFIG.BASE_FIAT_CURRENCY,
+                "rate": info["rate"],
+                "timestamp": info["timestamp"],
+                "source": info["source"],
+            })
 
         # Пишем журнал
-        records = self._build_journal_records(merged, PARSER_CONFIG.BASE_FIAT_CURRENCY)
         added = self._storage.update_journal(records)
         logger.info(f"В журнал добавлено записей: {added}")
 

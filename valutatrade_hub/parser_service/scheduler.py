@@ -11,7 +11,7 @@ import time
 
 from valutatrade_hub.parser_service.config import PARSER_CONFIG
 
-logger = logging.getLogger("valutatrade")
+logger = logging.getLogger("valutatrade.parser")
 
 
 class UpdateScheduler:
@@ -36,10 +36,12 @@ class UpdateScheduler:
                 try:
                     self._updater.run_update()
                 except Exception as e:
-                    logger.error(f"Обновление не удалось: {e}")
+                    logger.error(f"Обновление не удалось: {str(e)}")
                 else:
                     logger.info("Обновление прошло успешно.")
 
                 time.sleep(self._interval_sec)
         except KeyboardInterrupt:
             logger.info("Планировщик остановлен (Ctrl+C).")
+        except Exception as e:
+            logger.error(f"Ошибка: {str(e)}")
