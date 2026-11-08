@@ -189,8 +189,9 @@ class PortfolioService:
         data = self.rates_storage.read()
             
         rates_flat = {}
-            
-        for pair_key, info in data.items():
+
+        pairs = data.get("pairs", {})
+        for pair_key, info in pairs.items():
             if not isinstance(info, dict) or "rate" not in info:
                 continue
                 

@@ -13,7 +13,7 @@ from valutatrade_hub.core.usecases import Auth, PortfolioService
 
 class CLI:
     def __init__(self):
-        self._current_user_id = 5
+        self._current_user_id = None
         self.commands = {
             "register": self.handle_register,
             "login": self.handle_login,
