@@ -13,6 +13,7 @@ class SettingsLoader(metaclass=MetaClass):
         "rates_data_file" : "rates.json",
         "log_dir": "logs",
         "log_file": "actions.log",
+        "parser_log_file": "parser.log",
         "log_fmt" : "[%(levelname)s] [%(asctime)s] %(message)s",
         "log_date_fmt" : "%Y-%m-%d %H:%M:%S",
         "log_max_mb": 5,
