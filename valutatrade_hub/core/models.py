@@ -1,4 +1,3 @@
-# valutatrade_hub\core\models.py
 import hashlib
 import secrets
 from datetime import UTC, datetime

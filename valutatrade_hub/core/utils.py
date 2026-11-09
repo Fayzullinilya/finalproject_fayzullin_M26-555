@@ -1,4 +1,3 @@
-# utils.py
 import json
 import os
 
@@ -6,7 +5,8 @@ import os
 class JsonStorage:
     def __init__(self, filepath: str, expected_type: type = list) -> None:
         """
-        expected_type: какой тип данных мы ожидаем получить (list для портфелей, dict для курсов)
+        expected_type: какой тип данных мы ожидаем получить
+        (list для портфелей, dict для курсов)
         """
         self.filepath = os.path.abspath(filepath)
         directory = os.path.dirname(self.filepath)

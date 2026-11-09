@@ -1,4 +1,3 @@
-# valutatrade_hub\cli\interface.py
 import shlex
 
 import prompt
@@ -8,12 +7,13 @@ from valutatrade_hub.core.exceptions import (
     CurrencyNotFoundError,
     InsufficientFundsError,
 )
+from valutatrade_hub.core.models import User
 from valutatrade_hub.core.usecases import Auth, PortfolioService
 
 
 class CLI:
     def __init__(self):
-        self._current_user_id = None
+        self._current_user: User = None
         self.commands = {
             "register": self.handle_register,
             "login": self.handle_login,
@@ -30,14 +30,17 @@ class CLI:
 
     @property
     def current_user_id(self) -> int | None:
-        return self._current_user_id
+        return self._current_user.user_id
 
-    def _set_current_user(self, user_id: int | None) -> None:
-        # внутренний мтод. текущий пользоватеь может меняться тольо через команду login
-        self._current_user_id = user_id
+    @property
+    def current_user_name(self) -> int | None:
+        if self._current_user is not None:
+            return self._current_user.username
+        else:
+            return "Guest"
 
     def _is_logged_in(self) -> bool:
-        return self._current_user_id is not None
+        return self._current_user is not None
 
     def _get_arg_value(self, args: list[str], key: str) -> str | None:
         found_values = []
@@ -66,11 +69,8 @@ class CLI:
     def run(self) -> None:
         while True:
             try:
-                # Временно передаем ID. поменяем на объект сессию и имя пользователя
-                active_user = str(self._current_user_id) if self._is_logged_in else "Guest"
             
-                user_input = prompt.string(f"\n<{active_user}> Введите команду: ")
-
+                user_input = prompt.string(f"\n<{self.current_user_name}> Введите команду: ")
 
                 if user_input.strip().lower() == "exit":
                     break
@@ -161,8 +161,8 @@ class CLI:
                 print("Ошибка: имя и пароль не могут быть пустыми.")
                 return
 
-            user_id = self.user_auth.login_user(username, password)
-            self._set_current_user(user_id)
+            user = self.user_auth.login_user(username, password)
+            self._current_user = user
             print(f"Вы вошли как '{username}'.")
         except ValueError as e:
             print(f"Ошибка: {e!s}")

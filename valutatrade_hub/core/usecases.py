@@ -1,12 +1,11 @@
-# valutatrade_hub\core\usecases.py
 import hashlib
 import os
 import secrets
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 
 from valutatrade_hub.core.currencies import Currency
 from valutatrade_hub.core.exceptions import CurrencyNotFoundError
-from valutatrade_hub.core.models import Portfolio, Wallet
+from valutatrade_hub.core.models import Portfolio, User, Wallet
 from valutatrade_hub.core.utils import JsonStorage
 from valutatrade_hub.decorators import log_action
 from valutatrade_hub.infra.settings import SettingsLoader
@@ -59,10 +58,9 @@ class Auth:
         salt = secrets.token_hex(16)
         hashed_password = hashlib.sha256((password + salt).encode("utf-8")).hexdigest()
 
-        # Генерируем дату в UTC, сразу в нужном формате: с +00:00 вместо Z
+        # Генерация даты в UTC
         reg_date = datetime.now(UTC)
         registration_date_str = reg_date.isoformat()  
-        # например: 2025-11-03T14:22:10.123456+00:00
 
         # Формирование записи пользователя
         new_user = {
@@ -107,17 +105,13 @@ class Auth:
         if user is None:
             raise ValueError(f"Пользователь '{username}' не найден")
 
-        # Проверка пароля
-        # Здесь нужнно использовать User.verify_password
-        salt = user.get("salt", "")
-        expected_hash = user.get("hashed_password", "")
-        provided_hash = hashlib.sha256((password + salt).encode("utf-8")).hexdigest()
+        user_obj = User.from_dict(user)
 
-        if provided_hash != expected_hash:
+        if not user_obj.verify_password(password):
             raise ValueError("Неверный пароль")
 
-        # Успешный вход: возвращаем user_id
-        return user["user_id"]
+        # Успешный вход: возвращаем user_obj
+        return user_obj
 
 class PortfolioService:
         
@@ -145,8 +139,6 @@ class PortfolioService:
 
         if portfolio_data is None:
             return None
-
-        rates = self._load_rates()
 
         wallets_raw = portfolio_data.get("wallets", {})
         wallets = {}
@@ -193,14 +185,14 @@ class PortfolioService:
         """
         settings = SettingsLoader()
         data = self.rates_storage.read()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         has_old = False
 
         # Ищем устаревшие курсы
         pairs = data.get("pairs", {})
         for info in pairs.values():
             updated_at = info.get("updated_at")
-            updated_dt = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+            updated_dt = datetime.fromisoformat(updated_at)
             if (now - updated_dt).total_seconds() > settings.get("RATES_TTL_SECONDS", "data"):
                 has_old = True
                 break

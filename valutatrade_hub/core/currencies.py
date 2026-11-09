@@ -1,4 +1,3 @@
-# currencies.py
 from abc import ABC, abstractmethod
 
 from valutatrade_hub.core.exceptions import CurrencyNotFoundError
@@ -26,7 +25,7 @@ class Currency(ABC):
         code = code.replace(" ", "").strip().upper()
         settings = SettingsLoader()
         currency_reg = settings.get("CURRENCY_REGISTRY", {})
-        data = currency_reg.get(code, "")
+        data = currency_reg.get(code)
         if data is None:
             available = ", ".join(currency_reg.keys())
             raise CurrencyNotFoundError(code, available)
