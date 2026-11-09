@@ -9,3 +9,4 @@ tests/
 .vscode/
 data/
 logs/
+*.cast

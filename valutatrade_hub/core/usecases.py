@@ -2,7 +2,7 @@
 import hashlib
 import os
 import secrets
-from datetime import UTC, datetime
+from datetime import datetime, timezone, UTC
 
 from valutatrade_hub.core.currencies import Currency
 from valutatrade_hub.core.exceptions import CurrencyNotFoundError
@@ -157,7 +157,7 @@ class PortfolioService:
             balance = data.get("balance", 0.0)
             wallets[code] = Wallet(code, balance)
 
-        return Portfolio(user_id, wallets, rates)
+        return Portfolio(user_id, wallets)
 
     def _save_portfolio(self, portfolio):
         portfolios_data = self.portfolios_storage.read()
@@ -185,11 +185,32 @@ class PortfolioService:
         self.portfolios_storage.write(portfolios_data)
 
     def _load_rates(self):
-        """Читает rates.json и возвращает плоский словарь {code: rate_to_USD}."""
+        """
+        Читает rates.json и возвращает плоский словарь {code: rate_to_USD}.
+        Перед разбором пар проверяет свежесть всех дат updated_at.
+        Если хоть одна устарела (TTL = RATES_TTL_SECONDS), вызывает update_rates
+        целиком и перечитывает файл.
+        """
+        settings = SettingsLoader()
         data = self.rates_storage.read()
-            
-        rates_flat = {}
+        now = datetime.now(timezone.utc)
+        has_old = False
 
+        # Ищем устаревшие курсы
+        pairs = data.get("pairs", {})
+        for info in pairs.values():
+            updated_at = info.get("updated_at")
+            updated_dt = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+            if (now - updated_dt).total_seconds() > settings.get("RATES_TTL_SECONDS", "data"):
+                has_old = True
+                break
+
+        # Обновляем курсы если есть устаревшие
+        if has_old:
+            self.update_rates()
+            data = self.rates_storage.read()
+
+        rates = {}
         pairs = data.get("pairs", {})
         for pair_key, info in pairs.items():
             if not isinstance(info, dict) or "rate" not in info:
@@ -202,31 +223,31 @@ class PortfolioService:
             from_code, to_code = parts[0], parts[1]
                 
             if to_code == "USD":
-                rates_flat[from_code] = float(info["rate"])
+                rates[from_code] = float(info["rate"])
             
-        if "USD" not in rates_flat:
-            rates_flat["USD"] = 1.0
+        if "USD" not in rates:
+            rates["USD"] = 1.0
                 
-        return rates_flat
+        return rates
     
     def show_portfolio(self, user_id, base_currency=None):
         portfolio = self._load_portfolio(user_id)
         if portfolio is None:
-            rates = self._load_rates()
-            portfolio = Portfolio(user_id, {}, rates)
+            portfolio = Portfolio(user_id, {})
 
         if base_currency is None:
             settings = SettingsLoader()
             base_currency = settings.get("base_currency", "USD")
-
         base_curr_obj = Currency.get_currency(base_currency)
-        total_value = portfolio.get_total_value(base_curr_obj.code)
+
+        rates = self._load_rates()
+        total_value = portfolio.get_total_value(base_curr_obj.code, rates)
 
         currencies = {}
         for code, wallet in portfolio.wallets.items():
             try:
-                rate_to_usd = portfolio._rates[code]
-                base_rate = portfolio._rates.get(base_curr_obj.code, 1.0)
+                rate_to_usd = rates[code]
+                base_rate = rates.get(base_curr_obj.code, 1.0)
                 value_in_base = wallet.balance * rate_to_usd / base_rate
                 currencies[code] = {
                     "qty": wallet.balance,
@@ -254,6 +275,7 @@ class PortfolioService:
             raise ValueError("Сумма покупки должна быть положительным числом.")
 
         currency_obj = Currency.get_currency(currency)
+        rates = self._load_rates()
 
         portfolio = self._load_portfolio(user_id)
         if portfolio is None:
@@ -271,7 +293,7 @@ class PortfolioService:
 
         self._save_portfolio(portfolio)
 
-        rate = portfolio._rates.get(currency_obj.code, 0.0)
+        rate = rates.get(currency_obj.code, 0.0)
         cost = amount * rate
 
         return {
@@ -291,6 +313,7 @@ class PortfolioService:
             raise ValueError("Сумма продажи должна быть положительным числом.")
 
         currency_obj = Currency.get_currency(currency)
+        rates = self._load_rates()
 
         portfolio = self._load_portfolio(user_id)
         if portfolio is None:
@@ -308,7 +331,7 @@ class PortfolioService:
         wallet.withdraw(amount)
 
         new_qty = wallet.balance
-        rate = portfolio._rates.get(currency_obj.code, 0.0)
+        rate = rates.get(currency_obj.code, 0.0)
         revenue = amount * rate
 
         self._save_portfolio(portfolio)
@@ -362,7 +385,7 @@ class PortfolioService:
             "is_valid": True,
         }
     
-    def update_rates(self, source:str):
+    def update_rates(self, source: str | None = None):
 
         storage = RatesStorage(
             data_dir=PARSER_CONFIG.DATA_PATH,
@@ -379,7 +402,6 @@ class PortfolioService:
         result = updater.run_update()
 
         return result
-
 
     def show_rates(self, currency=None, top=None, base=None) -> dict:
         """

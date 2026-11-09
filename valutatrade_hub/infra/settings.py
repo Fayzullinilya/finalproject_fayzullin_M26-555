@@ -22,7 +22,7 @@ class SettingsLoader(metaclass=MetaClass):
         "log_max_mb": 5,
         "log_count" : 5,
         "base_currency": "USD",
-        "RATES_TTL_SECONDS": 300
+        "RATES_TTL_SECONDS": 100
     }
 
     CONFIG_JSON = "config.json"

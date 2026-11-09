@@ -190,16 +190,14 @@ class Wallet:
 class Portfolio:
 
     def __init__(self, user_id: int,
-                 wallets: dict[str, "Wallet"] | None = None, 
-                 rates: dict | None = None):
+                 wallets: dict[str, "Wallet"] | None = None               
+                ):
         if not isinstance(user_id, int) or user_id <= 0:
             raise ValueError("user_id должен быть положительным целым числом")
         self._user_id = user_id
 
         # Инициализируем пустой словарь или принимаем переданный
         self._wallets = wallets if wallets is not None else {}
-        # Сохраняем курсы внутри модели, чтобы get_total_value мог ими пользоваться
-        self._rates = rates if rates is not None else {}
 
     @property
     def user_id(self) -> int:
@@ -207,6 +205,7 @@ class Portfolio:
 
     @property
     def user(self):
+        # Portfolio не хранит объект User, поэтому возвращаем user_id
         return self._user_id
 
     @property
@@ -233,23 +232,21 @@ class Portfolio:
         code = currency_code.strip().upper()
         return self._wallets.get(code)
 
-    def get_total_value(self, base_currency: str = "USD") -> float:
+    def get_total_value(self, base_currency: str, rates: dict) -> float:
         """
         Возвращает общую стоимость портфеля в указанной базовой валюте.
-        Сигнатура строго по заданию: только base_currency.
-        Логика расчёта использует self._rates, переданные в конструкторе.
         """
         base_currency = base_currency.upper()
-        base_rate = self._rates.get(base_currency, 1.0)
+        base_rate = rates.get(base_currency, 1.0)
         
-        # Защита от деления на ноль, если курс базовой валюты вдруг 0
+        # Защита от деления на ноль, если курс базовой валюты 0
         if base_rate == 0:
             base_rate = 1.0
 
         total_value = 0.0
         for code, wallet in self.wallets.items():
             # Курс текущей валюты к базовой: rate_code / rate_base
-            code_rate = self._rates.get(code, 0.0)
+            code_rate = rates.get(code, 0.0)
             value_in_base = wallet.balance * (code_rate / base_rate)
             total_value += value_in_base
 
@@ -265,7 +262,7 @@ class Portfolio:
             balance = w_data.get("balance", 0.0)
             wallets[code.upper()] = Wallet(currency_code=code.upper(), balance=balance)
         
-        return cls(user_id=user_id, wallets=wallets, rates=rates)
+        return cls(user_id=user_id, wallets=wallets)
 
     def to_dict(self) -> dict:
         wallets_data = {}

@@ -196,12 +196,10 @@ class CLI:
 
             print("-" * 32)
             print(f"ИТОГО: {total:,.2f} {base_currency}")
-        except CurrencyNotFoundError as e:
+        except (CurrencyNotFoundError, ValueError) as e:
             print(f"Ошибка: {e!s}")
         except KeyError as e:
             print(f"Ошибка данных портфеля: отсутствует поле {e}")
-        except ValueError as e:
-            print(str(e))
 
     def handle_buy(self, args: list[str]) -> None:
         if not self._is_logged_in():
@@ -268,11 +266,9 @@ class CLI:
             print("Изменения в портфеле:")
             print(f"- {currency}: было {prev_qty:.4f} → стало {new_qty:.4f}")
             print(f"Оценочная выручка: {revenue:,.2f} USD")
-        except CurrencyNotFoundError as e:
+        except (CurrencyNotFoundError, ValueError) as e:
             print(f"Ошибка: {e!s}")
         except InsufficientFundsError as e:
-            print(str(e))
-        except ValueError as e:
             print(str(e))
         except KeyError as e:
             print(f"Ошибка данных: отсутствует поле {e}")
@@ -298,10 +294,8 @@ class CLI:
 
             print(f"Курс {rate_result['from']}→{rate_result['to']}: {rate_result['rate']:.8f}")
             print(f"Обратный курс {rate_result['to']}→{rate_result['from']}: {rate_result['inverse_rate']:.2f}")
-        except CurrencyNotFoundError as e:
+        except (CurrencyNotFoundError, ApiRequestError, ValueError) as e:
             print(f"Ошибка: {e!s}")
-        except ValueError as e:
-            print(str(e))
         except KeyError as e:
             print(f"Ошибка данных: отсутствует поле {e}")
 
@@ -329,9 +323,7 @@ class CLI:
                 print(f"Обновление успешно. Всего обновлено курсов: {result['total']}. "
                     f"Последнее обновление: {result['last_refresh']}")
 
-        except ApiRequestError as e:
-            print(f"Ошибка: {e!s}")
-        except ValueError as e:
+        except (ApiRequestError, ValueError) as e:
             print(f"Ошибка: {e!s}")
 
     def handle_show_rates(self, args) -> None:
@@ -356,6 +348,6 @@ class CLI:
             for row in result["rows"]:
                 print(f"- {row['pair']}: {row['rate']:.4f}")
         
-        except (ValueError, CurrencyNotFoundError) as e:
+        except (ApiRequestError, ValueError, CurrencyNotFoundError) as e:
             print(f"Ошибка: {e}")
             return 
